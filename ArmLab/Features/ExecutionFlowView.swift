@@ -1,6 +1,12 @@
 import SwiftUI
 import SwiftData
 
+struct ThrowBlock: Identifiable {
+    let id = UUID()
+    var distance: Int
+    var count: Int
+}
+
 struct ExecutionFlowView: View {
     let routine: Routine
 
@@ -21,6 +27,21 @@ struct ExecutionFlowView: View {
     @State private var plyoChoice: [UUID: UUID] = [:]   // step id -> plyo type id
     @State private var throwChoice: [UUID: UUID] = [:]  // step id -> throw option id
     @State private var catchDistance = 75
+
+    // Long toss blocks (editable)
+    @State private var blocks: [ThrowBlock] = [
+        ThrowBlock(distance: 60, count: 10),
+        ThrowBlock(distance: 90, count: 10),
+        ThrowBlock(distance: 120, count: 8),
+        ThrowBlock(distance: 150, count: 8),
+        ThrowBlock(distance: 90, count: 10)
+    ]
+
+    // Live day
+    @State private var livePitches = 20
+    @State private var simAB = false
+    @State private var abCount = 1
+    @State private var abPitches = 5
 
     // Wrap-up
     @AppStorage("recoveryCycleIndex") private var recoveryCycleIndex = 0
@@ -48,6 +69,7 @@ struct ExecutionFlowView: View {
                 case .log:     postLog
                 }
             }
+            .appScreen()
             .navigationTitle(routine.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -113,6 +135,8 @@ struct ExecutionFlowView: View {
         case .paths(let paths):          pathsView(step, paths)
         case .plyos(let types):          plyosView(step, types)
         case .throwChoice(let options):  throwChoiceView(step, options)
+        case .throwBlocks:               throwBlocksView
+        case .live:                      liveView
         case .bullpen:                   bullpenView
         }
     }
@@ -137,7 +161,7 @@ struct ExecutionFlowView: View {
                 Spacer()
             }
             .padding(12)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))
+            .background(RoundedRectangle(cornerRadius: 12).fill(AppTheme.card))
         }
         .buttonStyle(.plain)
     }
@@ -157,7 +181,7 @@ struct ExecutionFlowView: View {
 
     // MARK: Stretch paths
 
-    private func optionButton(_ title: String, selected: Bool, tint: Color = .blue, action: @escaping () -> Void) -> some View {
+    private func optionButton(_ title: String, selected: Bool, tint: Color = AppTheme.accent, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .font(.caption).bold()
@@ -165,7 +189,7 @@ struct ExecutionFlowView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
                 .background(RoundedRectangle(cornerRadius: 12)
-                    .fill(selected ? tint : Color(uiColor: .secondarySystemBackground)))
+                    .fill(selected ? tint : AppTheme.card))
                 .foregroundColor(selected ? .white : .primary)
         }
     }
@@ -232,7 +256,7 @@ struct ExecutionFlowView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Label(goal.rawValue, systemImage: goal.icon)
-                        .font(.headline).foregroundColor(.blue)
+                        .font(.headline).foregroundColor(AppTheme.accent)
                     Spacer()
                     Button("Change Goal") { self.goal = nil }.font(.caption)
                 }
@@ -271,7 +295,7 @@ struct ExecutionFlowView: View {
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: option.icon)
-                                .font(.title3).foregroundColor(.blue).frame(width: 32)
+                                .font(.title3).foregroundColor(AppTheme.accent).frame(width: 32)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(option.rawValue).font(.headline)
                                 Text(option.tagline).font(.caption).foregroundColor(.secondary)
@@ -280,7 +304,7 @@ struct ExecutionFlowView: View {
                             Image(systemName: "chevron.right").foregroundColor(.secondary)
                         }
                         .padding(14)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(Color(uiColor: .secondarySystemBackground)))
+                        .background(RoundedRectangle(cornerRadius: 14).fill(AppTheme.card))
                     }
                     .buttonStyle(.plain)
                 }
@@ -293,7 +317,7 @@ struct ExecutionFlowView: View {
             Text("Record velocities (mph)").font(.headline)
             if let stats = velocityStats {
                 Text(String(format: "Peak %.1f  ·  Avg %.1f", stats.peak, stats.avg))
-                    .font(.subheadline).foregroundColor(.blue)
+                    .font(.subheadline).foregroundColor(AppTheme.accent)
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 5), spacing: 6) {
                 ForEach(velos.indices, id: \.self) { i in
@@ -307,6 +331,76 @@ struct ExecutionFlowView: View {
         }
     }
 
+    // MARK: Long toss blocks
+
+    @ViewBuilder private var throwBlocksView: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach($blocks) { $block in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Button { toggle(block.id) } label: {
+                            Image(systemName: checked.contains(block.id) ? "checkmark.circle.fill" : "circle")
+                                .font(.title3)
+                                .foregroundColor(checked.contains(block.id) ? .green : .gray)
+                        }
+                        Text("\(block.count) throws at \(block.distance) ft").font(.headline)
+                        Spacer()
+                        Button(role: .destructive) {
+                            blocks.removeAll { $0.id == block.id }
+                        } label: { Image(systemName: "trash") }
+                    }
+                    Stepper("Distance: \(block.distance) ft", value: $block.distance, in: 30...400, step: 5)
+                    Stepper("Throws: \(block.count)", value: $block.count, in: 1...50)
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 12).fill(AppTheme.card))
+            }
+
+            Button {
+                blocks.append(ThrowBlock(distance: blocks.last?.distance ?? 90, count: 10))
+            } label: {
+                Label("Add Block", systemImage: "plus.circle.fill").bold()
+            }
+
+            Text("Total: \(blocks.reduce(0) { $0 + $1.count }) throws  ·  Max \(blocks.map(\.distance).max() ?? 0) ft")
+                .font(.caption).foregroundColor(.secondary)
+        }
+    }
+
+    // MARK: Live day
+
+    private let liveBlocks = [
+        "8 fastballs, building to normal bullpen intent",
+        "8 secondary pitches at the same intent",
+        "4 pitches from the stretch"
+    ]
+
+    @ViewBuilder private var liveView: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Normal bullpen intent  ·  under 25 pitches").font(.subheadline).bold()
+            ForEach(Array(liveBlocks.enumerated()), id: \.offset) { index, block in
+                HStack(alignment: .top, spacing: 10) {
+                    Text("\(index + 1)")
+                        .font(.caption).bold()
+                        .frame(width: 22, height: 22)
+                        .background(Circle().fill(AppTheme.accent))
+                        .foregroundColor(.white)
+                    Text(block).font(.subheadline)
+                }
+            }
+            Stepper("Pre-live pitches thrown: \(livePitches)", value: $livePitches, in: 0...24)
+
+            Divider()
+            Toggle("Add a simulated at-bat", isOn: $simAB)
+            if simAB {
+                Text("Picture a hitter or use a live batter. Start 0-0 and work the count with game intent.")
+                    .font(.caption).foregroundColor(.secondary)
+                Stepper("At-bats: \(abCount)", value: $abCount, in: 1...5)
+                Stepper("Pitches in at-bats: \(abPitches)", value: $abPitches, in: 0...40)
+            }
+        }
+    }
+
     // MARK: Throwing options (recovery day)
 
     private func throwChoiceView(_ step: RoutineStep, _ options: [ThrowOption]) -> some View {
@@ -315,7 +409,7 @@ struct ExecutionFlowView: View {
             if let chosen {
                 HStack {
                     Label(chosen.name, systemImage: chosen.icon)
-                        .font(.headline).foregroundColor(.blue)
+                        .font(.headline).foregroundColor(AppTheme.accent)
                     Spacer()
                     Button("Change") { throwChoice[step.id] = nil }.font(.caption)
                 }
@@ -339,7 +433,7 @@ struct ExecutionFlowView: View {
                     Button { throwChoice[step.id] = option.id } label: {
                         HStack(spacing: 12) {
                             Image(systemName: option.icon)
-                                .font(.title3).foregroundColor(.blue).frame(width: 32)
+                                .font(.title3).foregroundColor(AppTheme.accent).frame(width: 32)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(option.name).font(.headline)
                                 Text(option.summary).font(.caption).foregroundColor(.secondary)
@@ -348,7 +442,7 @@ struct ExecutionFlowView: View {
                             Image(systemName: "chevron.right").foregroundColor(.secondary)
                         }
                         .padding(14)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(Color(uiColor: .secondarySystemBackground)))
+                        .background(RoundedRectangle(cornerRadius: 14).fill(AppTheme.card))
                     }
                     .buttonStyle(.plain)
                 }
@@ -373,13 +467,13 @@ struct ExecutionFlowView: View {
                         Text("Wrap Up").font(.title2).bold()
                         Text("Choose how to finish today's session.")
                             .font(.subheadline).foregroundColor(.secondary)
-                        ForEach(WrapUpOption.allCases) { option in
+                        ForEach(routine.wrapUpOptions) { option in
                             Button {
                                 if option == .skip { phase = .log } else { wrapChoice = option }
                             } label: {
                                 HStack(spacing: 12) {
                                     Image(systemName: option.icon)
-                                        .font(.title3).foregroundColor(.blue).frame(width: 32)
+                                        .font(.title3).foregroundColor(AppTheme.accent).frame(width: 32)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(option.rawValue).font(.headline)
                                         Text(option.tagline).font(.caption).foregroundColor(.secondary)
@@ -388,7 +482,7 @@ struct ExecutionFlowView: View {
                                     Image(systemName: "chevron.right").foregroundColor(.secondary)
                                 }
                                 .padding(14)
-                                .background(RoundedRectangle(cornerRadius: 14).fill(Color(uiColor: .secondarySystemBackground)))
+                                .background(RoundedRectangle(cornerRadius: 14).fill(AppTheme.card))
                             }
                             .buttonStyle(.plain)
                         }
@@ -449,6 +543,18 @@ struct ExecutionFlowView: View {
         }
     }
 
+    private var hasLongToss: Bool {
+        routine.steps.contains { step in
+            if case .throwBlocks = step.kind { return true } else { return false }
+        }
+    }
+
+    private var hasLive: Bool {
+        routine.steps.contains { step in
+            if case .live = step.kind { return true } else { return false }
+        }
+    }
+
     private func saveSession() {
         var parts = [routine.name, "arm: \(armStatus)", "reps: \(throwsCompleted)", "fatigue: \(Int(fatigue))/10"]
         if let goal { parts.append("bullpen: \(goal.rawValue)") }
@@ -457,6 +563,13 @@ struct ExecutionFlowView: View {
                let picked = options.first(where: { $0.id == throwChoice[step.id] }) {
                 parts.append("throwing: \(picked.name)" + (picked.hasDistance ? " (max \(catchDistance) ft)" : ""))
             }
+        }
+        let doneBlocks = blocks.filter { checked.contains($0.id) }
+        if hasLongToss && !doneBlocks.isEmpty {
+            parts.append("long toss: " + doneBlocks.map { "\($0.count)x\($0.distance)ft" }.joined(separator: ", "))
+        }
+        if hasLive {
+            parts.append("live: \(livePitches) pre-live pitches" + (simAB ? ", \(abCount) sim AB (\(abPitches) pitches)" : ""))
         }
         if let wrapChoice { parts.append("wrap-up: \(wrapChoice.rawValue)") }
         if wrapChoice == .postThrow {
@@ -485,6 +598,17 @@ struct ExecutionFlowView: View {
         if let stats = velocityStats {
             let count = velos.compactMap { Double($0) }.filter { $0 > 0 }.count
             log.throwingLog = ThrowingLog(maxDistanceFeet: 0, highIntentThrows: count, peakVelocityMph: stats.peak)
+        }
+
+        if hasLive {
+            log.moundLog = MoundLog(pitchCount: livePitches + (simAB ? abPitches : 0), strikePercentage: 0, pitchQualityScore: 0)
+        }
+        if hasLongToss && !doneBlocks.isEmpty && log.throwingLog == nil {
+            log.throwingLog = ThrowingLog(
+                maxDistanceFeet: Double(doneBlocks.map(\.distance).max() ?? 0),
+                highIntentThrows: doneBlocks.reduce(0) { $0 + $1.count },
+                peakVelocityMph: 0
+            )
         }
 
         modelContext.insert(log)

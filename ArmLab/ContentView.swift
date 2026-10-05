@@ -9,18 +9,29 @@ enum ThrowingPhase: String, CaseIterable {
     case offSeason = "Off-Season", preSeason = "Pre-Season", inSeason = "In-Season", recovery = "Recovery"
 }
 
-enum DayType: String {
-    case heavy = "Heavy Throw Day"
-    case recovery = "Recovery / Mobility"
-    case off = "Off Day"
+enum DayType: String, CaseIterable {
+    case off = "Off Day: No Throw"
+    case lightRecovery = "Light Day: Recovery & Mobility"
+    case lightCatch = "Light Day: Catch & Drill Work"
+    case heavyPlyo = "Heavy Day: Plyo Ball Only"
+    case heavyLongToss = "Heavy Day: Long Toss"
+    case heavyBullpen = "Heavy Day: Bullpen"
+    case live = "Live"
 
     var icon: String {
         switch self {
-        case .heavy: return "figure.baseball"
-        case .recovery: return "figure.cooldown"
         case .off: return "bed.double.fill"
+        case .lightRecovery: return "figure.cooldown"
+        case .lightCatch: return "figure.baseball"
+        case .heavyPlyo: return "bolt.fill"
+        case .heavyLongToss: return "arrow.up.right.circle.fill"
+        case .heavyBullpen: return "scope"
+        case .live: return "flame.fill"
         }
     }
+
+    /// Live is selectable only and is never recommended by the quiz or the schedule.
+    var canBeRecommended: Bool { self != .live }
 }
 
 // MARK: - Root (Entry & Auth gating)
@@ -30,13 +41,17 @@ struct RootView: View {
     @AppStorage("hasOnboarded") private var hasOnboarded = false
 
     var body: some View {
-        if !isSignedIn {
-            SignInView()
-        } else if !hasOnboarded {
-            OnboardingView()
-        } else {
-            DashboardView()
+        Group {
+            if !isSignedIn {
+                SignInView()
+            } else if !hasOnboarded {
+                OnboardingView()
+            } else {
+                DashboardView()
+            }
         }
+        .preferredColorScheme(.dark)
+        .tint(AppTheme.accent)
     }
 }
 
@@ -64,6 +79,7 @@ struct OnboardingView: View {
                 Button("Finish Setup") { hasOnboarded = true }
                     .bold()
             }
+            .appScreen()
             .navigationTitle("Set Up Profile")
         }
     }
@@ -78,7 +94,7 @@ struct NavCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: icon).font(.title2).frame(width: 36).foregroundColor(.blue)
+            Image(systemName: icon).font(.title2).frame(width: 36).foregroundColor(AppTheme.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
                 Text(subtitle).font(.caption).foregroundColor(.secondary)
@@ -87,7 +103,7 @@ struct NavCard: View {
             Image(systemName: "chevron.right").foregroundColor(.secondary)
         }
         .padding()
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))
+        .background(RoundedRectangle(cornerRadius: 12).fill(AppTheme.card))
     }
 }
 
@@ -101,12 +117,13 @@ struct RoutineListView: View {
             Button { onStart(routine) } label: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(routine.name).font(.headline)
-                    Text("\(routine.dayType.rawValue) · \(routine.steps.count) steps")
+                    Text("\(routine.steps.count) steps")
                         .font(.caption).foregroundColor(.secondary)
                 }
             }
         }
-        .navigationTitle("Routines")
+        .appScreen()
+            .navigationTitle("Routines")
     }
 }
 
@@ -129,15 +146,21 @@ struct QuizView: View {
             return (.off, "Your arm is telling you it needs rest. Take the day off and reassess tomorrow.")
         }
         if armFeel <= 2 || fatigue >= 8 {
-            return (.recovery, "Low arm feel and high fatigue point to an easy day. Mobility work helps you bounce back.")
+            return (.lightRecovery, "Low arm feel and high fatigue point to an easy day. Mobility work helps you bounce back.")
         }
         if daysToOuting <= 1 {
-            return (.recovery, "With an outing coming up, keep today light so you're fresh when it counts.")
+            return (.lightRecovery, "With an outing coming up, keep today light so you're fresh when it counts.")
         }
-        if exertion >= 3 {
-            return (.heavy, "Your arm feels good and you want to work, so a heavy throw day fits.")
+        switch Int(exertion) {
+        case 1, 2:
+            return (.lightCatch, "You want it easy. Catch and drill work keeps the arm moving without much load.")
+        case 3:
+            return (.heavyPlyo, "Your arm feels good. Plyo work builds arm care and intent without baseball throws.")
+        case 4:
+            return (.heavyLongToss, "You feel good and want to push. A long toss day builds arm speed and distance.")
+        default:
+            return (.heavyBullpen, "You feel great and want max work. A bullpen day lets you train off the mound.")
         }
-        return (.recovery, "You feel good but want lower intensity. A recovery session keeps you moving without the load.")
     }
 
     var body: some View {
@@ -173,7 +196,7 @@ struct QuizView: View {
                 Section("Recommended for you") {
                     VStack(alignment: .leading, spacing: 6) {
                         Label(resultType.rawValue, systemImage: resultType.icon)
-                            .font(.headline).foregroundColor(.blue)
+                            .font(.headline).foregroundColor(AppTheme.accent)
                         Text(resultReason).font(.subheadline)
                     }
                     ForEach(RoutineLibrary.all.filter { $0.dayType == resultType }) { routine in
@@ -189,7 +212,7 @@ struct QuizView: View {
                                 Image(systemName: routine.dayType.icon).frame(width: 28)
                                 VStack(alignment: .leading) {
                                     Text(routine.name)
-                                    Text(routine.dayType.rawValue).font(.caption).foregroundColor(.secondary)
+                                    Text("\(routine.steps.count) steps").font(.caption).foregroundColor(.secondary)
                                 }
                             }
                         }
@@ -197,7 +220,8 @@ struct QuizView: View {
                 }
             }
         }
-        .navigationTitle("Routine Quiz")
+        .appScreen()
+            .navigationTitle("Routine Quiz")
     }
 }
 
@@ -223,7 +247,8 @@ struct HistoryView: View {
                 }
             }
         }
-        .navigationTitle("History")
+        .appScreen()
+            .navigationTitle("History")
     }
 }
 
@@ -258,7 +283,8 @@ struct SettingsView: View {
                 Button("Sign Out", role: .destructive) { isSignedIn = false }
             }
         }
-        .navigationTitle("Settings")
+        .appScreen()
+            .navigationTitle("Settings")
     }
 }
 
@@ -268,9 +294,12 @@ struct SettingsView: View {
 
 func scheduledDayType(for date: Date) -> DayType {
     switch Calendar.current.component(.weekday, from: date) { // 1 = Sunday
-    case 1, 7: return .off
-    case 3, 5: return .recovery
-    default:   return .heavy
+    case 2:  return .heavyLongToss
+    case 3:  return .lightRecovery
+    case 4:  return .heavyBullpen
+    case 5:  return .lightCatch
+    case 6:  return .heavyPlyo
+    default: return .off
     }
 }
 
@@ -286,7 +315,7 @@ struct SignInView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [.blue, .indigo], startPoint: .top, endPoint: .bottom)
+            AppTheme.hero
                 .ignoresSafeArea()
 
             VStack(spacing: 14) {
@@ -307,7 +336,7 @@ struct SignInView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(Color.white)
-                        .foregroundColor(.blue)
+                        .foregroundColor(AppTheme.accent)
                         .cornerRadius(14)
                 }
 
@@ -357,6 +386,7 @@ struct AuthFormView: View {
                 .bold()
                 .disabled(email.isEmpty || password.isEmpty)
             }
+            .appScreen()
             .navigationTitle(mode == .register ? "Register" : "Welcome Back")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -406,7 +436,7 @@ struct DashboardView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("Hi, \(firstName)")
-                        .font(.largeTitle).bold()
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
 
                     todayCard
                     elseSection
@@ -428,7 +458,7 @@ struct DashboardView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
-                        .background(RoundedRectangle(cornerRadius: 14).fill(Color(uiColor: .secondarySystemBackground)))
+                        .background(RoundedRectangle(cornerRadius: 14).fill(AppTheme.card))
                     }
 
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -453,6 +483,7 @@ struct DashboardView: View {
                 .padding()
             }
             .buttonStyle(.plain)
+            .appScreen()
             .navigationBarTitleDisplayMode(.inline)
         }
         .fullScreenCover(item: $runningRoutine) { routine in
@@ -502,7 +533,7 @@ struct DashboardView: View {
                         Button { runningRoutine = routine } label: {
                             VStack(alignment: .leading, spacing: 8) {
                                 Image(systemName: routine.dayType.icon)
-                                    .font(.title3).foregroundColor(.blue)
+                                    .font(.title3).foregroundColor(AppTheme.accent)
                                 Text(routine.name).font(.subheadline).bold()
                                 Text("\(routine.steps.count) steps")
                                     .font(.caption).foregroundColor(.secondary)
@@ -516,7 +547,7 @@ struct DashboardView: View {
                             }
                             .frame(width: 150, alignment: .leading)
                             .padding(14)
-                            .background(RoundedRectangle(cornerRadius: 16).fill(Color(uiColor: .secondarySystemBackground)))
+                            .background(RoundedRectangle(cornerRadius: 16).fill(AppTheme.card))
                         }
                     }
                 }
@@ -540,7 +571,7 @@ struct DashboardView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                         .background(Color.white)
-                        .foregroundColor(.blue)
+                        .foregroundColor(AppTheme.accent)
                         .cornerRadius(10)
                 }
             }
@@ -548,7 +579,7 @@ struct DashboardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
         .background(
-            LinearGradient(colors: [.blue, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing)
+            AppTheme.hero
         )
         .cornerRadius(18)
     }
@@ -571,7 +602,7 @@ struct DashboardView: View {
                 .padding(.vertical, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(isToday ? Color.blue.opacity(0.15) : Color(uiColor: .secondarySystemBackground))
+                        .fill(isToday ? Color.blue.opacity(0.15) : AppTheme.card)
                 )
             }
         }
@@ -585,13 +616,13 @@ struct StatTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Image(systemName: icon).foregroundColor(.blue)
+            Image(systemName: icon).foregroundColor(AppTheme.accent)
             Text(value).font(.title).bold()
             Text(title).font(.caption).foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color(uiColor: .secondarySystemBackground)))
+        .background(RoundedRectangle(cornerRadius: 14).fill(AppTheme.card))
     }
 }
 
@@ -601,11 +632,11 @@ struct NavTile: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Image(systemName: icon).font(.title).foregroundColor(.blue)
+            Image(systemName: icon).font(.title).foregroundColor(AppTheme.accent)
             Text(title).font(.subheadline).bold()
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 22)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Color(uiColor: .secondarySystemBackground)))
+        .background(RoundedRectangle(cornerRadius: 14).fill(AppTheme.card))
     }
 }

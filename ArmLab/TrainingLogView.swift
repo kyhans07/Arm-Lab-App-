@@ -44,7 +44,7 @@ struct TrainingLogView: View {
                     .bold()
                 }
                 .padding()
-                .background(Color(uiColor: .secondarySystemBackground))
+                .background(AppTheme.card)
 
                 // Section Chips Navigation Bar
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -62,7 +62,7 @@ struct TrainingLogView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 10)
                 }
-                .background(Color(uiColor: .systemBackground))
+                .background(Color.clear)
 
                 Divider()
 
@@ -74,6 +74,7 @@ struct TrainingLogView: View {
                     .padding()
                 }
             }
+            .background(AppBackground())
             .navigationTitle("Training Log")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -106,7 +107,7 @@ struct TrainingLogView: View {
                 ), in: 1...10, step: 1)
             }
             .padding()
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))
+            .background(RoundedRectangle(cornerRadius: 12).fill(AppTheme.card))
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Mental Focus / Intent: \(mentalFocusScore)/10")
@@ -116,7 +117,7 @@ struct TrainingLogView: View {
                 ), in: 1...10, step: 1)
             }
             .padding()
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))
+            .background(RoundedRectangle(cornerRadius: 12).fill(AppTheme.card))
         }
     }
 
@@ -166,7 +167,7 @@ struct TrainingLogView: View {
                     }
                 }
                 .padding()
-                .background(RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))
+                .background(RoundedRectangle(cornerRadius: 12).fill(AppTheme.card))
             }
         }
     }
@@ -198,7 +199,7 @@ struct TrainingLogView: View {
                 }
             }
             .padding()
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))
+            .background(RoundedRectangle(cornerRadius: 12).fill(AppTheme.card))
         }
     }
 
@@ -229,7 +230,7 @@ struct TrainingLogView: View {
                 }
             }
             .padding()
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))
+            .background(RoundedRectangle(cornerRadius: 12).fill(AppTheme.card))
         }
     }
 
@@ -244,7 +245,7 @@ struct TrainingLogView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(uiColor: .secondarySystemBackground)))
+        .background(RoundedRectangle(cornerRadius: 12).fill(AppTheme.card))
     }
 
     // MARK: - Persistence Action

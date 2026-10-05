@@ -35,6 +35,8 @@ enum StepKind {
     case paths([StretchPath])
     case plyos([PlyoType])
     case throwChoice([ThrowOption])
+    case throwBlocks
+    case live
     case bullpen
 }
 
@@ -50,6 +52,7 @@ struct Routine: Identifiable {
     let name: String
     let dayType: DayType
     let steps: [RoutineStep]
+    var wrapUpOptions: [WrapUpOption] = WrapUpOption.allCases
 }
 
 struct ThrowOption: Identifiable {
@@ -380,49 +383,71 @@ enum RoutineLibrary {
             kind: .checklist(list))
     }()
 
-    // Heavy day throwing
+    // Long toss: the user builds blocks of distance + number of throws
     static let longToss = RoutineStep(
         title: "Long Toss",
-        subtitle: "Build out, then work back in. Stay athletic and let it fly on the way out.",
-        kind: .checklist(items([
-            ("Easy Throws, 60 ft", "10 throws, smooth."),
-            ("Build to 90 ft", "10 throws, arc and rhythm."),
-            ("Build to 120 ft", "10 throws."),
-            ("Max Distance Block", "10-15 high-intent throws."),
-            ("Work Back In", "10 throws from 90 ft down to 60 ft.")
-        ])))
+        subtitle: "Build your own blocks. Add as many distances and throw counts as you want.",
+        kind: .throwBlocks)
 
-    // Bullpen step (interactive)
     static let bullpen = RoutineStep(
         title: "Bullpen",
         subtitle: "Pick a goal and follow the plan.",
         kind: .bullpen)
 
-    // MARK: All routines
+    static let plyoAB = RoutineStep(
+        title: "Plyo Ball Work",
+        subtitle: "Choose Plyo A (arm path) or Plyo B (light).",
+        kind: .plyos([PlyoLibrary.a, PlyoLibrary.b]))
+
+    static let medBallStep = RoutineStep(
+        title: "Med Ball Routine",
+        subtitle: "Explosive rotational work. Stay athletic.",
+        kind: .checklist(PostThrowLibrary.medBall))
+
+    static let waterballStep = RoutineStep(
+        title: "Waterball Routine",
+        subtitle: "Hops, swings, and pitch patterns.",
+        kind: .checklist(PostThrowLibrary.waterball))
+
+    static let preLive = RoutineStep(
+        title: "Pre-Live Bullpen",
+        subtitle: "A short pen at normal bullpen intent, under 25 pitches. Add a simulated at-bat if you want.",
+        kind: .live)
+
+    // MARK: All routines (Live is selectable only and is never recommended)
 
     static let all: [Routine] = [
-        Routine(name: "Heavy Throw Day", dayType: .heavy, steps: [
-            rollOut, staticStretch, dynamicWarmUp, preThrow,
-            RoutineStep(title: "Plyo Ball Work",
-                        subtitle: "Choose Plyo A (arm path) or Plyo B (light).",
-                        kind: .plyos([PlyoLibrary.a, PlyoLibrary.b])),
-            longToss
+        Routine(name: "Off Day: No Throw", dayType: .off, steps: [
+            rollOut, staticStretch
         ]),
-        Routine(name: "Bullpen Day", dayType: .heavy, steps: [
+        Routine(name: "Light Day: Recovery & Mobility", dayType: .lightRecovery, steps: [
+            rollOut, staticStretch, dynamicWarmUp, preThrow,
+            RoutineStep(title: "Throwing",
+                        subtitle: "Pick how you want to throw today.",
+                        kind: .throwChoice(ThrowLibrary.options))
+        ]),
+        Routine(name: "Light Day: Catch & Drill Work", dayType: .lightCatch, steps: [
+            rollOut, staticStretch, dynamicWarmUp, preThrow,
+            RoutineStep(title: "Catch & Drills",
+                        subtitle: "Pick plyo drills, football catch, or light baseball catch.",
+                        kind: .throwChoice(ThrowLibrary.catchOptions)),
+            medBallStep, waterballStep
+        ], wrapUpOptions: [.postThrow, .skip]),
+        Routine(name: "Heavy Day: Plyo Ball Only", dayType: .heavyPlyo, steps: [
+            rollOut, staticStretch, dynamicWarmUp, preThrow, plyoAB
+        ]),
+        Routine(name: "Heavy Day: Long Toss", dayType: .heavyLongToss, steps: [
+            rollOut, staticStretch, dynamicWarmUp, preThrow, plyoAB, longToss
+        ]),
+        Routine(name: "Heavy Day: Bullpen", dayType: .heavyBullpen, steps: [
             rollOut, staticStretch, dynamicWarmUp, preThrowBullpen,
             RoutineStep(title: "Plyo Ball Work",
                         subtitle: "Plyo C day: all A and B exercises.",
                         kind: .plyos([PlyoLibrary.c])),
             bullpen
         ]),
-        Routine(name: "Recovery & Mobility", dayType: .recovery, steps: [
-            rollOut, staticStretch, dynamicWarmUp, preThrow,
-            RoutineStep(title: "Throwing",
-                        subtitle: "Pick how you want to throw today.",
-                        kind: .throwChoice(ThrowLibrary.options))
-        ]),
-        Routine(name: "Off Day Mobility", dayType: .off, steps: [
-            rollOut, staticStretch
+        Routine(name: "Live", dayType: .live, steps: [
+            rollOut, staticStretch, dynamicWarmUp, preThrowBullpen, plyoAB, preLive
         ])
     ]
 }
@@ -457,6 +482,9 @@ enum ThrowLibrary {
             summary: "Skip throwing and move on to wrap-up.",
             isNoThrow: true)
     ]
+
+    // Catch & drill day: plyos, football catch, light baseball catch
+    static let catchOptions: [ThrowOption] = Array(ThrowLibrary.options.prefix(3))
 }
 
 // MARK: - Post-throw routines (from your sheets)
