@@ -34,33 +34,42 @@ enum DayType: String, CaseIterable {
     var canBeRecommended: Bool { self != .live }
 }
 
-// MARK: - Root (Entry & Auth gating)
+// MARK: - Root (splash, onboarding, dashboard)
 
 struct RootView: View {
-    @AppStorage("isSignedIn") private var isSignedIn = false
     @AppStorage("hasOnboarded") private var hasOnboarded = false
+    @State private var showSplash = true
 
     var body: some View {
-        Group {
-            if !isSignedIn {
-                SignInView()
-            } else if !hasOnboarded {
+        ZStack {
+            if !hasOnboarded {
                 OnboardingView()
             } else {
                 DashboardView()
             }
+
+            if showSplash {
+                SplashView()
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
         }
         .preferredColorScheme(.dark)
         .tint(AppTheme.accent)
+        .task {
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.easeOut(duration: 0.5)) { showSplash = false }
+        }
     }
 }
 
-// MARK: - 1. Landing / Sign-In (local stub; swap for real auth later)
+// MARK: - 1. Splash / Loading Screen
 
 // MARK: - 1b. Onboarding
 
 struct OnboardingView: View {
     @AppStorage("hasOnboarded") private var hasOnboarded = false
+    @AppStorage("userName") private var userName = ""
     @AppStorage("throwingHand") private var hand = ThrowingHand.right.rawValue
     @AppStorage("throwingPhase") private var phase = ThrowingPhase.inSeason.rawValue
     @AppStorage("throwDaysPerWeek") private var throwDays = 4
@@ -68,6 +77,8 @@ struct OnboardingView: View {
     var body: some View {
         NavigationStack {
             Form {
+                TextField("First name", text: $userName)
+                    .textContentType(.givenName)
                 Picker("Throwing Hand", selection: $hand) {
                     ForEach(ThrowingHand.allCases, id: \.rawValue) { Text($0.rawValue).tag($0.rawValue) }
                 }
@@ -255,9 +266,8 @@ struct HistoryView: View {
 // MARK: - Node 4: Settings & Profile
 
 struct SettingsView: View {
-    @AppStorage("isSignedIn") private var isSignedIn = false
     @AppStorage("hasOnboarded") private var hasOnboarded = false
-    @AppStorage("userEmail") private var userEmail = ""
+    @AppStorage("userName") private var userName = ""
     @AppStorage("throwingHand") private var hand = ThrowingHand.right.rawValue
     @AppStorage("throwingPhase") private var phase = ThrowingPhase.inSeason.rawValue
     @AppStorage("throwDaysPerWeek") private var throwDays = 4
@@ -266,7 +276,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Profile") {
-                LabeledContent("Email", value: userEmail)
+                TextField("First name", text: $userName)
                 Picker("Hand", selection: $hand) {
                     ForEach(ThrowingHand.allCases, id: \.rawValue) { Text($0.rawValue).tag($0.rawValue) }
                 }
@@ -280,7 +290,6 @@ struct SettingsView: View {
             }
             Section {
                 Button("Redo Onboarding") { hasOnboarded = false }
-                Button("Sign Out", role: .destructive) { isSignedIn = false }
             }
         }
         .appScreen()
@@ -303,16 +312,9 @@ func scheduledDayType(for date: Date) -> DayType {
     }
 }
 
-// MARK: - Landing Page
+// MARK: - Splash Screen
 
-enum AuthMode: String, Identifiable {
-    case login, register
-    var id: String { rawValue }
-}
-
-struct SignInView: View {
-    @State private var authMode: AuthMode?
-
+struct SplashView: View {
     var body: some View {
         ZStack {
             AppTheme.hero
@@ -320,77 +322,19 @@ struct SignInView: View {
 
             VStack(spacing: 14) {
                 Spacer()
-                Image(systemName: "figure.baseball")
-                    .font(.system(size: 84))
-                    .foregroundColor(.white)
-                Text("ArmLab")
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                ArmLabLogo(style: .full, height: 300)
                 Text("Train smarter. Protect your arm.")
                     .foregroundColor(.white.opacity(0.85))
                 Spacer()
 
-                Button { authMode = .register } label: {
-                    Text("Create Account")
-                        .bold()
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.white)
-                        .foregroundColor(AppTheme.accent)
-                        .cornerRadius(14)
-                }
-
-                Button { authMode = .login } label: {
-                    Text("Log In")
-                        .bold()
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .foregroundColor(.white)
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white, lineWidth: 2))
-                }
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(.white)
+                    .controlSize(.large)
+                    .padding(.bottom, 48)
             }
             .padding(24)
         }
-        .sheet(item: $authMode) { mode in
-            AuthFormView(mode: mode)
-        }
-    }
-}
-
-struct AuthFormView: View {
-    let mode: AuthMode
-
-    @AppStorage("isSignedIn") private var isSignedIn = false
-    @AppStorage("userEmail") private var userEmail = ""
-    @AppStorage("userName") private var userName = ""
-    @State private var name = ""
-    @State private var email = ""
-    @State private var password = ""
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                if mode == .register {
-                    TextField("First name", text: $name)
-                }
-                TextField("Email", text: $email)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.emailAddress)
-                SecureField("Password", text: $password)
-
-                Button(mode == .register ? "Create Account" : "Log In") {
-                    userEmail = email
-                    if mode == .register { userName = name }
-                    isSignedIn = true
-                }
-                .bold()
-                .disabled(email.isEmpty || password.isEmpty)
-            }
-            .appScreen()
-            .navigationTitle(mode == .register ? "Register" : "Welcome Back")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-        .presentationDetents([.medium])
     }
 }
 
@@ -399,7 +343,6 @@ struct AuthFormView: View {
 struct DashboardView: View {
     @Query(sort: \DailyLog.date, order: .reverse) private var logs: [DailyLog]
     @AppStorage("userName") private var userName = ""
-    @AppStorage("userEmail") private var userEmail = ""
 
     @AppStorage("quizRecommendation") private var quizPick = ""
 
@@ -409,8 +352,7 @@ struct DashboardView: View {
     private let calendar = Calendar.current
 
     private var firstName: String {
-        if !userName.isEmpty { return userName }
-        return userEmail.split(separator: "@").first.map(String.init) ?? "Pitcher"
+        userName.isEmpty ? "Pitcher" : userName
     }
 
     private var todayType: DayType { scheduledDayType(for: Date()) }
@@ -500,6 +442,11 @@ struct DashboardView: View {
             .buttonStyle(.plain)
             .appScreen()
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    ArmLabLogo(style: .mark, height: 30)
+                }
+            }
         }
         .fullScreenCover(item: $runningRoutine) { routine in
             ExecutionFlowView(routine: routine)
@@ -528,7 +475,7 @@ struct DashboardView: View {
                         .font(.title3)
                         .foregroundColor(.white)
                         .frame(width: 40, height: 40)
-                        .background(Circle().fill(Color.blue))
+                        .background(Circle().fill(AppTheme.accent))
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Take the routine quiz").font(.headline)
                         Text(quizPick.isEmpty ? "Takes about 30 seconds" : "Last pick: \(quizPick)")
@@ -538,7 +485,7 @@ struct DashboardView: View {
                     Image(systemName: "chevron.right").foregroundColor(.secondary)
                 }
                 .padding(14)
-                .background(RoundedRectangle(cornerRadius: 16).fill(Color.blue.opacity(0.12)))
+                .background(RoundedRectangle(cornerRadius: 16).fill(AppTheme.accent.opacity(0.14)))
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -555,7 +502,7 @@ struct DashboardView: View {
                                     Text("Recommended")
                                         .font(.caption2).bold()
                                         .padding(.horizontal, 8).padding(.vertical, 3)
-                                        .background(Capsule().fill(Color.blue))
+                                        .background(Capsule().fill(AppTheme.accent))
                                         .foregroundColor(.white)
                                 }
                             }
@@ -610,13 +557,13 @@ struct DashboardView: View {
                     Text(date.formatted(.dateTime.weekday(.narrow)))
                         .font(.caption2).foregroundColor(.secondary)
                     Image(systemName: done ? "checkmark.circle.fill" : scheduledDayType(for: date).icon)
-                        .foregroundColor(done ? .green : (isToday ? .blue : .gray))
+                        .foregroundColor(done ? .green : (isToday ? AppTheme.accent : .gray))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(isToday ? Color.blue.opacity(0.15) : AppTheme.card)
+                        .fill(isToday ? AppTheme.accent.opacity(0.18) : AppTheme.card)
                 )
             }
         }

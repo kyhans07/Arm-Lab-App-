@@ -268,7 +268,7 @@ struct ExecutionFlowView: View {
                         Text("\(index + 1)")
                             .font(.caption).bold()
                             .frame(width: 22, height: 22)
-                            .background(Circle().fill(Color.blue))
+                            .background(Circle().fill(AppTheme.accent))
                             .foregroundColor(.white)
                         Text(block).font(.subheadline)
                     }

@@ -1,14 +1,17 @@
 import SwiftUI
 
 enum AppTheme {
-    static let accent = Color(red: 0.30, green: 0.65, blue: 1.0)
+    /// Arm Lab brand palette (taken from the logo)
+    static let navy = Color(red: 0.12, green: 0.21, blue: 0.38)
+    static let brandRed = Color(red: 0.85, green: 0.26, blue: 0.28)
+    static let accent = brandRed
     static let card = Color.white.opacity(0.08)
 
-    static let backgroundTop = Color(red: 0.05, green: 0.09, blue: 0.20)
-    static let backgroundBottom = Color(red: 0.02, green: 0.03, blue: 0.08)
+    static let backgroundTop = Color(red: 0.07, green: 0.12, blue: 0.25)
+    static let backgroundBottom = Color(red: 0.02, green: 0.04, blue: 0.10)
 
     static let hero = LinearGradient(
-        colors: [Color(red: 0.10, green: 0.55, blue: 0.95), Color(red: 0.38, green: 0.25, blue: 0.90)],
+        colors: [Color(red: 0.16, green: 0.29, blue: 0.52), Color(red: 0.07, green: 0.12, blue: 0.27)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )

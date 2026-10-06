@@ -322,7 +322,7 @@ struct CategoryChip: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(isActive ? Color.blue : Color(uiColor: .tertiarySystemFill))
+            .background(isActive ? AppTheme.accent : Color(uiColor: .tertiarySystemFill))
             .foregroundColor(isActive ? .white : .primary)
             .cornerRadius(20)
         }
