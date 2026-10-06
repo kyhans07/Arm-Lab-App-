@@ -546,3 +546,13 @@ enum PostThrowLibrary {
         ("Turn and Burns", "1 x 5.")
     ])
 }
+
+// MARK: - Live day pre-live bullpen
+
+enum LiveBullpen {
+    static let blocks = [
+        "8 fastballs, building to normal bullpen intent",
+        "8 secondary pitches at the same intent",
+        "4 pitches from the stretch"
+    ]
+}

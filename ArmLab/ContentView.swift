@@ -404,7 +404,7 @@ struct DashboardView: View {
     @AppStorage("quizRecommendation") private var quizPick = ""
 
     @State private var runningRoutine: Routine?
-    @State private var showQuickLog = false
+    @State private var showLibrary = false
 
     private let calendar = Calendar.current
 
@@ -476,9 +476,24 @@ struct DashboardView: View {
                         }
                     }
 
-                    Button("Open Detailed Training Log") { showQuickLog = true }
-                        .font(.subheadline)
-                        .frame(maxWidth: .infinity)
+                    Button { showLibrary = true } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "books.vertical.fill")
+                                .font(.title2)
+                                .foregroundColor(AppTheme.accent)
+                                .frame(width: 36)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Drill Library").font(.headline)
+                                Text("Browse every drill in every section")
+                                    .font(.caption).foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundColor(.secondary)
+                        }
+                        .padding()
+                        .background(RoundedRectangle(cornerRadius: 14).fill(AppTheme.card))
+                    }
+                    .fullScreenCover(isPresented: $showLibrary) { DrillLibraryScreen() }
                 }
                 .padding()
             }
@@ -489,7 +504,6 @@ struct DashboardView: View {
         .fullScreenCover(item: $runningRoutine) { routine in
             ExecutionFlowView(routine: routine)
         }
-        .sheet(isPresented: $showQuickLog) { TrainingLogView() }
     }
 
     // "Looking for something else?" + quiz prompt + alternative days

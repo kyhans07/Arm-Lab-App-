@@ -369,11 +369,7 @@ struct ExecutionFlowView: View {
 
     // MARK: Live day
 
-    private let liveBlocks = [
-        "8 fastballs, building to normal bullpen intent",
-        "8 secondary pitches at the same intent",
-        "4 pitches from the stretch"
-    ]
+    private let liveBlocks = LiveBullpen.blocks
 
     @ViewBuilder private var liveView: some View {
         VStack(alignment: .leading, spacing: 14) {
